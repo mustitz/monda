@@ -1,0 +1,68 @@
+Stdout: Monad := DetalizationOf ForeinCall
+
+function write
+  fd: Int
+  buf: Pointer
+  count: Size
+returns ForeignCall SSize
+linkage "libc", "write"
+
+record Buffer
+  ptr: Pointer
+  size: Size
+
+record String
+  ref_count: Int64
+  buffer: Buffer
+
+Exit_Code: Type = Range[0..255]
+
+function id arg: T
+returns T
+requires Type T
+monadic
+  arg
+
+interface Showable T
+  function show obj: T
+  returns String
+
+interface Buffered T
+  function buf obj: T
+  returns Buffer
+
+implementation Monad Identity
+  function pure Value: Exit_Code
+  returns Identity Exit_Code
+
+implementation Monad Identity
+  function bind
+    Value: Exit_Code
+  returns Identity Exit_Code
+
+implementation Showable String
+  show = id
+
+implementation Buffered String
+  buf = builtin
+
+function write obj: T
+returns Stdout SSize
+requires Buffered T
+monadic ForeignCall
+  buf: Buffer := obj.buf
+  write 1 buf.ptr buf.size
+
+function print obj: T
+requires Showable T
+returns Stdout SSize
+monadic Stdout
+  write obj.show
+
+function main
+returns ret_code: Stdout Exit_Code
+guarantee ret_code = 0
+monadic Stdout
+  msg: String := "Hello, Monda!\n"
+  <- print msg
+  0

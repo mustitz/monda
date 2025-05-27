@@ -1,0 +1,12 @@
+# Build directory
+build/
+
+# LLVM intermediate files
+*.bc
+*.s
+*.o
+
+# Editor files
+*~
+.*.swp
+.*.swo
