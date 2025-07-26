@@ -22,5 +22,6 @@ executable monda-hask
     -- other-modules:
     -- other-extensions:
     build-depends:    base ^>=4.21.0.0
+                    , parsec
     hs-source-dirs:   app
     default-language: GHC2024
