@@ -1,0 +1,12 @@
+name = "monda"
+defaultTargets = ["Monda", "Examples"]
+
+[leanOptions]
+autoImplicit = false
+
+[[lean_lib]]
+name = "Monda"
+
+[[lean_lib]]
+name = "Examples"
+globs = ["Examples.+"]
