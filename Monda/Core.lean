@@ -32,13 +32,12 @@ inductive Term (L : Lang)
 
 mutual
 
-  /-- A statement inside `n` enclosing loops. `call f args` is `assign` with
-  the result discarded; multiple assignment is a function returning a pair,
+  /-- A statement inside `n` enclosing loops. A call whose result is unused
+  is `_ := f(args)`; multiple assignment is a function returning a pair,
   followed by `Fst`/`Snd`. -/
 
   inductive Stmt (L : Lang) : Nat → Type
     | assign {n : Nat} : L.Var → L.Fn → List (Term L) → Stmt L n     -- x := f(y₁..yₙ)
-    | call   {n : Nat} : L.Fn → List (Term L) → Stmt L n             -- f(y₁..yₙ)
     | ite    {n : Nat} : L.Var → Block L n → Block L n → Stmt L n    -- if var then ... else ... end if
     | loop   {n : Nat} : Block L (n+1) → Stmt L n                    -- loop ... end loop
     | brk    {n : Nat} : Fin n → Stmt L n                            -- break

@@ -32,6 +32,8 @@ Decisions and their rationale. Current state and plans are in
 - Postconditions hold only on the success path; guarantees like
   "`none` only if `Alloc` returned `none`" are not needed for now
 - Contracts may call only pure functions
+- Monads exist only in the source language: the frontend expands `bind`
+  into explicit checks, the core AST and its semantics have no monads
 
 ## Verification
 
@@ -65,10 +67,32 @@ dependencies go core ← Monda instance ← examples.
 - Arithmetic, field access and `Alloc` are ordinary functions (primitives)
 - `break`/`continue` outside a loop are unrepresentable
 - Multiple assignment is sugar: a function returns a pair, then `Fst`/`Snd`
-- `call f args` is `assign` with the result discarded
+- No call statement: `f(args)` is `_ := f(args)`, fewer cases in every proof
 - No goto: proofs get too hard. No Wasm-style `block`:
   `block body = loop (body ++ [brk 0])`
 - Extrinsic typing: the AST is untyped, types are a separate predicate
+
+### Semantics
+
+- Big-step, as a relation: `Stmt.BigStep` and `Block.BigStep` (mutual)
+- A non-terminating run has no derivation, so the semantics covers
+  terminating runs only
+- `Outcome` (`normal`, `brk`, `cont`, `ret`) is indexed by loop depth, like
+  the AST: a function body can only finish with `normal` or `ret`
+- Blocks pass any outcome except `normal` upwards; only `loop` consumes
+  signals, through `Outcome.exitLoop`, so a loop needs just two rules
+- No `fail` outcome: OOM is a null pointer returned by the function,
+  monads may change this later
+- Semantic parameters (`Sem`) are separate from syntax (`Lang`): one AST
+  can have several semantics (wrapping vs checked arithmetic,
+  concrete vs abstract memory)
+- State is split: `Locals` belong to the core (a function
+  `Var → Option Val`), `Globals` are opaque and changed only by primitives
+- Atoms have no effects and do not read `Globals`; global variables are
+  accessed through primitives (`GetGlobal`/`SetGlobal`), as in Clight
+- Primitives are relations, not functions: `Alloc` may return a pointer
+  or null, both are valid runs
+- Truthiness of a value in `ite` is a semantic parameter (`truthy`)
 
 ### References
 

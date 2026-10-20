@@ -9,10 +9,12 @@ Plugs Monda into the core AST: its variables, function names and literals.
 namespace Monda
 
 /-- A Monda variable: `named` comes from the source code, `auto k` is a
-temporary introduced by the translation to ANF. -/
+temporary introduced by the translation to ANF, `blank` receives results
+that are never read. -/
 
 inductive MondaVar
   | auto  : Nat → MondaVar
+  | blank : MondaVar
   | named : String → MondaVar
   deriving DecidableEq
 

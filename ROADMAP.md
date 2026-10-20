@@ -8,15 +8,16 @@ Design rationale is in [DESIGN.md](DESIGN.md).
 - Core AST (`Lang`, `Term`, `Stmt`, `Block`) compiles
 - First example: `Nat_Gen` with `MondaNat`, its abstraction function `val`
   and `natAdd` written in core AST
-- No semantics yet
+- Big-step semantics (`Monda/Semantics.lean`) compiles
 
 ## Next steps
 
-- [ ] `Outcome`: `normal`, `brk (Fin n)`, `cont (Fin n)`, `ret V`
-- [ ] Language parameters: `Val`, state, monad, interpretation of literals
-   and primitives, table of function bodies
-- [ ] Big-step semantics as a `mutual` inductive relation for `Stmt` and `Block`
+- [x] `Outcome`: `normal`, `brk (Fin n)`, `cont (Fin n)`, `ret V`
+- [x] Language parameters (`Sem`): `Val`, `Globals`, literals, `truthy`, primitives
+- [x] Big-step semantics as a `mutual` inductive relation for `Stmt` and `Block`
 - [ ] Typing as a separate predicate
+- [ ] Calls of user functions: table of function bodies
+- [ ] Monda instance `MondaSem : Sem MondaL`: values, memory, primitives of `natAdd`
 - [ ] WP or Hoare rules, their soundness, first VC for `natAdd`
 
 ## Open questions
@@ -25,7 +26,6 @@ Design rationale is in [DESIGN.md](DESIGN.md).
 - The tail `data[used..newSz)` is not zeroed; the code relies on `Alloc`
 - Idea: a typed `AllocNat(newSz)` returning an object with
   `data.size = newSz` and zeros, closing both points above
-- Truthiness of a variable in `ite` (byte, Bool) is up to the semantics
 - Core namespace is `Monda`, although the core is generic:
   rename to `Monda.Core` or split into a separate library?
 - Partial or total correctness
@@ -42,3 +42,8 @@ Design rationale is in [DESIGN.md](DESIGN.md).
 - Verification of the code generator
 - Non-tree types (doubly linked lists)
 - Mathlib dependency
+- Sanity theorems for the semantics:
+  - determinism, given deterministic primitives
+  - frame: a statement does not change locals it never assigns
+  - `loop []` has no derivation
+  - `block body = loop (body ++ [brk 0])`, needs lifting `brk`/`cont` by one

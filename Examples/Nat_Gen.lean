@@ -29,7 +29,7 @@ def asg {n : Nat} (v : MondaVar) (f : MondaFn) (args : List (Term MondaL)) : Stm
   .assign v f args
 
 def cl {n : Nat} (f : MondaFn) (args : List (Term MondaL)) : Stmt MondaL n :=
-  .call f args
+  .assign MondaVar.blank f args
 
 def natAdd : Block MondaL 0 := .ofList [
   -- if a.used > b.used: swap(a, b)
