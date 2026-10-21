@@ -37,18 +37,11 @@ abbrev MondaLit := Nat
 abbrev MondaL : Lang := { Var := MondaVar, Fn := MondaFn, Lit := MondaLit }
 
 
-/-- Identity of a heap block. Only equality is meaningful. -/
-
-structure BlockUid where
-  uid : Nat
-  deriving DecidableEq
-
-
 /-- A runtime value of Monda. Numbers carry no width: `UInt8`, `UInt32`
 and friends are distinguished by primitives and by typing, not by values.
 Booleans are numbers, `0` is false. Pointers are abstract addresses,
-`null` is separate. `unit` is the result of primitives that return
-nothing, such as `SetData`. -/
+`null` is separate. `unit` is the value of the `void`-like type of the
+language; the machine has no such value, it is lowered to no registers. -/
 
 inductive MondaVal
   | num  : Nat → MondaVal
@@ -72,28 +65,17 @@ read and written by primitives. `none` means the block is not allocated. -/
 abbrev MondaHeap := BlockUid → Option ByteArray
 
 
-/-- The Monda machine. Registers and memory are defined above;
-the instruction set is not yet. -/
+/-- Monda on the machine: what its literals and function names mean.
+A literal still has no width, so `lit` is not defined yet. -/
 
-def MondaMachine : Machine where
-  Register    := MondaVal
-  Memory      := MondaHeap
-  Instruction := sorry
-  tick        := sorry
-  truthy      := MondaVal.truthy
-
-
-/-- Monda on its machine: literals are numbers. -/
-
-def MondaSem : Sem MondaL MondaMachine where
-  lit := MondaVal.num
+def MondaSem : Sem MondaL where
+  lit := sorry
   asm := sorry
 
 
 /-- `v` is the null pointer. A procedure that returns a pointer
 reports OOM by returning null. -/
 
-def isNull (v : MondaMachine.Register) : Prop := v = MondaVal.null
-
+def isNull (v : Register) : Prop := v = Register.ptr .null
 
 end Monda

@@ -61,11 +61,13 @@ Layers:
 
 1. Generic core: AST, control-flow semantics, WP/Hoare, separation logic
    over an abstract resource algebra
-2. Machine: registers, memory, instructions; shared by all languages
-3. Binding `Sem L M` of a language to a machine: literals, instruction names
+2. Machine: one concrete virtual machine (registers, memory, instructions)
+   shared by all languages, like the JVM
+3. Binding `Sem L` of a language to the machine: literals, instruction names
 4. Frontend: translation of a concrete language into the core
 
-The memory model belongs to the machine, which is a parameter of the semantics.
+The machine is not a parameter of the semantics: there is one, and a
+language may use only part of it. The memory model belongs to the machine.
 AST and semantics are defined separately.
 
 In code this is enforced by imports: `Core` and `Machine` import nothing
@@ -78,69 +80,75 @@ core, machine ← semantics ← Monda instance ← examples.
 - Arithmetic, memory access and `Alloc` are machine instructions, called
   like functions; field access goes through generated getters and setters
 - `break`/`continue` outside a loop are unrepresentable
-- No compound values: a pure operation with two results is two
-  instructions (`ByteSum`, `ByteCarry`). Tuples only if an effectful
-  function ever needs several results
-- No call statement: `f(args)` is `_ := f(args)`, fewer cases in every proof
+- No compound values. `assign` has several destinations, `xs := f(args)`,
+  and the AST holds destinations and arguments as `Vector`s: an instruction
+  with two results (`addCU8`: sum and carry) writes two registers, one with
+  no results (`store`) writes none
+- No call statement: `f(args)` is `[] := f(args)`, fewer cases in every proof
 - No goto: proofs get too hard. No Wasm-style `block`:
   `block body = loop (body ++ [brk 0])`
 - Extrinsic typing: the AST is untyped, types are a separate predicate
+- Arity is not checked by the AST types, because the core knows nothing
+  about the machine. A call with a wrong number of arguments or results is
+  representable and has no derivation; typing rules it out
 
 ### Semantics
 
 - Big-step, as a relation: `Stmt.BigStep` and `Block.BigStep` (mutual)
 - A non-terminating run has no derivation, so the semantics covers
-  terminating runs only
+  terminating runs only. The same holds for a stuck run (an unassigned
+  variable, a wrong arity, an instruction without a rule): it has no
+  derivation either, so a statement about all derivations says nothing
+  about runs that get stuck. Safety (progress) has to be part of WP
 - `Outcome` (`normal`, `brk`, `cont`, `ret`) is indexed by loop depth, like
   the AST: a function body can only finish with `normal` or `ret`
 - Blocks pass any outcome except `normal` upwards; only `loop` consumes
   signals, through `Outcome.exitLoop`, so a loop needs just two rules
 - No `fail` outcome: OOM is a null pointer returned by the function,
   monads may change this later
-- The semantics is parameterised by a machine `M` and a binding
-  `S : Sem L M`. `Sem` holds only what belongs to the language: literals
-  (`lit`) and which function names are machine instructions (`asm`)
-- State is split: `Locals L M` belong to the core
-  (`L.Var → Option M.Register`), `M.Memory` is opaque and changed only by
-  instructions
+- The semantics is parameterised by a binding `S : Sem L`, which holds only
+  what belongs to the language: literals (`lit`) and which function names
+  are machine instructions (`asm`)
+- State is split: `Locals L` belong to the core
+  (`L.Var → Option Register`), `Memory` is changed only by instructions
 - Atoms have no effects and do not read memory; global variables are
   accessed through instructions, as in Clight
-- `x := f(args)` with `S.asm f = some i` runs `M.tick i`
+- `xs := f(args)` with `S.asm f = some instr`: `args` evaluate to `k`
+  registers, `Tick instr` gives `m` results, which are assigned to `xs`
+  (`Locals.setMany`; if a variable repeats, the last assignment wins)
 
 ### Machine
 
-An abstract virtual machine shared by all languages, an analogue of LLVM:
-a verified assembler. It knows nothing about the AST.
+One concrete virtual machine shared by all languages, an analogue of the
+JVM or LLVM: a verified assembler. It knows nothing about the AST. A
+language may use only part of it; a GC may be added later.
 
-- `Register`, `Memory`, `Instruction`, `tick`, `truthy`
+- `Register`, `Memory`, `Instruction`, `Tick`, `Register.truthy`
 - Control flow is not the machine's: `ite`, `loop` and calls live in the
   core AST. The machine only says whether a register leads into `then`
   (`truthy`), like a branch instruction
-- `tick` is a relation, not a function: `Alloc` may return a pointer or
-  null, both are valid runs
-- Wrapping and checked arithmetic are different instructions of one
-  machine, not different semantics. Different machines for one program
-  are different levels of detail: byte memory vs abstract memory for proofs
-- Language values are not machine values: a structure, closure or `BigInt`
-  is lowered by the frontend and related to the model by refinement
-- The machine can be built and verified on its own: lemmas about
-  instructions (load after store, `Alloc` gives a fresh block) are what
-  program proofs use
-
-Monda machine:
-
-- Registers: `num` without width (`UInt32` and `UInt64` are distinguished
-  by instructions and typing), `ptr`, `null` (separate, not `ptr 0`) and
-  `unit` (result of instructions that return nothing). Booleans are
-  numbers. `void` has no values, so it is a type only, never a register
-- Bytes exist only in memory: load and store convert between bytes and
-  `num` and check `< 256`
+- `Tick` is a relation, not a function: `alloc` may return a pointer or
+  null, both are valid runs. It is indexed by the number of arguments `k`
+  and results `m`; each rule fixes its own, so arity is stored nowhere else
+- Wrapping and checked arithmetic are different instructions
+- Registers are machine words: `u1` (a flag: carry, comparison), `u8`…`u64`,
+  `i8`…`i64` and `ptr`. A `Pointer` is `null` or a block; `null` is separate
+- Language values are not machine values: a `Nat`, `String`, structure or
+  closure is lowered by the frontend and related to the model by refinement
 - Memory: numbered blocks of raw bytes, as in CompCert,
-  `BlockUid → Option ByteArray`. A pointer names a block: no pointer
-  arithmetic, only equality. Fields are offsets inside a block
+  `BlockUid → Option ByteArray`. The machine does not know what a block
+  holds, only that it is allocated and how big it is. A pointer names a
+  block: no pointer arithmetic, only equality. Fields are offsets, passed
+  as separate arguments
+- The heap as a language sees it (`MondaHeap`) is a different thing: a
+  value may consist of several allocations. It is related to machine memory
+  by abstraction (`IsT`, see Operations)
 - The allocator is ideal: proofs assume it does not fail within the
   budget. A real allocator that needs more is the allocator's problem;
   the same goes for the stack
+- The machine can be built and verified on its own: lemmas about
+  instructions (load after store, `alloc` gives a fresh block) are what
+  program proofs use
 
 ### References
 
