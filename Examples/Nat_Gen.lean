@@ -9,6 +9,8 @@ structure MondaNat where
   head    : used.toNat = 0 ∨ data.get! (used.toNat - 1) ≠ 0
   leading : ∀ i, used.toNat ≤ i → i < data.size → data.get! i = 0
 
+def IsNat (g : MondaMachine.Memory) (p : MondaMachine.Register) (n : Nat) : Prop := sorry
+
 def MondaNat.val (a : MondaNat) : Nat :=
   go a.used.toNat
 where
@@ -100,6 +102,16 @@ def natAdd : Block MondaL 0 := .ofList [
 
   .ret (X "result")
 ]
+
+def natAdd_spec : Prop :=
+  ∀ {g₀ g₁ : MondaMachine.Memory} {l₀ l₁ : Locals MondaL MondaMachine}
+    {pa pb r : MondaMachine.Register} {na nb : Nat},
+    IsNat g₀ pa na →
+    IsNat g₀ pb nb →
+    l₀ (x "a") = some pa →
+    l₀ (x "b") = some pb →
+    Block.BigStep MondaSem g₀ l₀ natAdd g₁ l₁ (.ret r) →
+    isNull r ∨ IsNat g₁ r (na + nb)
 
 end NatAddEx
 
